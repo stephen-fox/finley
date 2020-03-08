@@ -18,6 +18,7 @@ func main() {
 	outputDirPath := flag.String("o", "", "The output directory. Creates a new directory if not specified")
 	respectFileCase := flag.Bool("respect-file-case", false, "Respect filenames' case when matching their extensions")
 	noIlspyErrors := flag.Bool("no-ilspy-errors", false, "Exit if ILSpy extraction fails to extract a file")
+	scanRecursively := flag.Bool("r", false, "Scan recursively")
 
 	flag.Parse()
 
@@ -54,6 +55,12 @@ func main() {
 			if info.IsDir() {
 				return nil
 			}
+			if !*scanRecursively {
+				if filepath.Dir(filePath) != absTargetDirPath {
+					return filepath.SkipDir
+				}
+			}
+
 			for i := range fileExts {
 				filename := info.Name()
 				if !*respectFileCase {
