@@ -247,6 +247,7 @@ type doer struct {
 func (o *doer) queue(fn func() error) {
 	o.wg.Add(1)
 	go func() {
+		defer o.wg.Done()
 		select {
 		case workerID := <-o.pool:
 			err := fn()
@@ -256,10 +257,8 @@ func (o *doer) queue(fn func() error) {
 				default:
 					close(o.dead)
 				}
-				o.wg.Done()
 				return
 			}
-			o.wg.Done()
 			o.pool <- workerID
 		case <-o.dead:
 			return
