@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"hash"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,9 +23,10 @@ func main() {
 	fileExtsCsv := flag.String("e", ".dll", "Comma separated list of file extensions to search for")
 	outputDirPath := flag.String("o", "", "The output directory. Creates a new directory if not specified")
 	respectFileCase := flag.Bool("respect-file-case", false, "Respect filenames' case when matching their extensions")
-	noIlspyErrors := flag.Bool("no-ilspy-errors", false, "Exit if ILSpy extraction fails to extract a file")
+	noIlspyErrors := flag.Bool("no-ilspy-errors", false, "Exit if ILSpy fails to decompile a file")
 	scanRecursively := flag.Bool("r", false, "Scan recursively")
 	numDecompilers := flag.Int("num-workers", runtime.NumCPU(), "Number of .NET decompiler instances to run concurrently")
+	allowDupelicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
 
 	flag.Parse()
 
@@ -52,49 +57,99 @@ func main() {
 
 	d := newDoer(*numDecompilers)
 
+	fileHashesToDecompiledPaths := make(map[string]string)
+
 	err = filepath.Walk(*targetDirPath,
 		func(filePath string, info os.FileInfo, err error) error {
+			// Gotta check the error provided by the last call.
+			if err != nil {
+				return err
+			}
+
 			if !*scanRecursively {
 				if filepath.Dir(filePath) != absTargetDirPath {
 					return filepath.SkipDir
 				}
 			}
 
-			d.queue(func() error {
-				if err != nil {
-					return err
+			if info.IsDir() {
+				return nil
+			}
+
+			filename := info.Name()
+			if !*respectFileCase {
+				filename = strings.ToLower(filename)
+			}
+
+			matchedExtension := false
+			for i := range fileExts {
+				if strings.HasSuffix(filename, fileExts[i]) {
+					matchedExtension = true
+					break
 				}
-				if info.IsDir() {
+			}
+			if !matchedExtension {
+				return nil
+			}
+
+			fileSha256str, err := hashFile(filePath, sha256.New())
+			if err != nil {
+				return fmt.Errorf("failed to hash file '%s' - %s", filePath, err.Error())
+			}
+
+			finalOutputDirPath := extractInfo{
+				searchAbsPath:     absTargetDirPath,
+				targetFileAbsPath: filePath,
+				outputDirPath:     *outputDirPath,
+			}.finalOutputDirPath()
+
+			if !*allowDupelicateFiles {
+				if existingPath, containsFileHash := fileHashesToDecompiledPaths[fileSha256str]; containsFileHash {
+					err = os.MkdirAll(finalOutputDirPath, 0700)
+					if err != nil {
+						return fmt.Errorf("failed to create directory for ignored dll '%s' - %s",
+							filePath, err.Error())
+					}
+					err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "ignored.log"),
+						[]byte(fmt.Sprintf("file has already been decomipled to '%s', hash of file is %s\n",
+							existingPath, fileSha256str)),
+						0600)
+					if err != nil {
+						return fmt.Errorf("failed to create ignored log for ignored dll '%s' - %s",
+							filePath, err.Error())
+					}
 					return nil
 				}
-				filename := info.Name()
-				if !*respectFileCase {
-					filename = strings.ToLower(filename)
-				}
-				for i := range fileExts {
-					if strings.HasSuffix(filename, fileExts[i]) {
-						extractedDirPath, err := extractNETFile(extractInfo{
-							searchAbsPath:     absTargetDirPath,
-							targetFileAbsPath: filePath,
-							outputDirPath:     *outputDirPath,
-						})
-						if err != nil {
-							if _, ok := err.(*ilspyError); ok {
-								if *noIlspyErrors {
-									return err
-								}
-								ioutil.WriteFile(filepath.Join(extractedDirPath, "extract-failure.log"), []byte(err.Error()), 0600)
-								log.Printf("[warn] %s", err.Error())
-								return nil
-							}
-							return fmt.Errorf("failed to extract '%s' - %s", filePath, err.Error())
+
+				fileHashesToDecompiledPaths[fileSha256str] = finalOutputDirPath
+			}
+
+			d.queue(func() error {
+				err := extractNETFile(filePath, finalOutputDirPath)
+				if err != nil {
+					if _, ok := err.(*ilspyError); ok {
+						if *noIlspyErrors {
+							return err
 						}
-
-						log.Printf("extracted '%s' to '%s'", filePath, extractedDirPath)
-
-						break
+						ioutil.WriteFile(filepath.Join(finalOutputDirPath, "decompile-failure.log"),
+							[]byte(err.Error()),
+							0600)
+						log.Printf("[warn] %s", err.Error())
+						return nil
 					}
+					return fmt.Errorf("failed to decompile '%s' - %s", filePath, err.Error())
 				}
+
+				err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "hash.txt"),
+					[]byte(fmt.Sprintf("%s\n", fileSha256str)),
+					0600)
+				if err != nil {
+					return fmt.Errorf("failed to write hash file for '%s' - %s",
+						filePath, fileSha256str)
+				}
+
+				log.Printf("decompiled '%s' to '%s'", filePath, finalOutputDirPath)
+
 				return nil
 			})
 
@@ -118,24 +173,25 @@ type extractInfo struct {
 	outputDirPath     string
 }
 
-func extractNETFile(info extractInfo) (string, error) {
-	finalOutputDirPath := filepath.Join(info.outputDirPath,
-		strings.TrimPrefix(info.targetFileAbsPath, info.searchAbsPath))
+func (o extractInfo) finalOutputDirPath() string {
+	return filepath.Join(o.outputDirPath, strings.TrimPrefix(o.targetFileAbsPath, o.searchAbsPath))
+}
 
+func extractNETFile(dotNetFilePath string, finalOutputDirPath string) error {
 	err := os.MkdirAll(finalOutputDirPath, 0700)
 	if err != nil {
-		return "", fmt.Errorf("failed to create output subdirectory - %s", err)
+		return fmt.Errorf("failed to create output subdirectory - %s", err)
 	}
 
-	raw, err := exec.Command("ilspycmd", info.targetFileAbsPath, "-p", "-o", finalOutputDirPath).CombinedOutput()
+	raw, err := exec.Command("ilspycmd", dotNetFilePath, "-p", "-o", finalOutputDirPath).CombinedOutput()
 	if err != nil {
-		return "", &ilspyError{
-			err: fmt.Sprintf("failed to extract .net code from '%s' - %s - %s",
-				info.targetFileAbsPath, err.Error(), raw),
+		return &ilspyError{
+			err: fmt.Sprintf("failed to decompile .NET file '%s' - %s - %s",
+				dotNetFilePath, err.Error(), raw),
 		}
 	}
 
-	return finalOutputDirPath, nil
+	return nil
 }
 
 type ilspyError struct {
@@ -200,4 +256,19 @@ func (o *doer) wait() error {
 	default:
 		return nil
 	}
+}
+
+func hashFile(filePath string, hasher hash.Hash) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(hasher, f)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
