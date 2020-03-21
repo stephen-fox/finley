@@ -249,20 +249,18 @@ func (o *doer) queue(fn func() error) {
 	go func() {
 		select {
 		case workerID := <-o.pool:
-			go func() {
-				err := fn()
-				if err != nil {
-					select {
-					case o.failed <- err:
-					default:
-						close(o.dead)
-					}
-					o.wg.Done()
-					return
+			err := fn()
+			if err != nil {
+				select {
+				case o.failed <- err:
+				default:
+					close(o.dead)
 				}
 				o.wg.Done()
-				o.pool <- workerID
-			}()
+				return
+			}
+			o.wg.Done()
+			o.pool <- workerID
 		case <-o.dead:
 			return
 		}
