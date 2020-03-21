@@ -46,6 +46,8 @@ arguments and an explanation of their effects:
     	The directory to search for DLLs
   -e string
     	Comma separated list of file extensions to search for (default ".dll")
+  -ilspy string
+    	The 'ilspycmd' binary to use (default "ilspycmd")
   -no-ilspy-errors
     	Exit if ILSpy fails to decompile a file
   -num-workers int

@@ -31,8 +31,15 @@ func main() {
 	scanRecursively := flag.Bool("r", false, "Scan recursively")
 	numDecompilers := flag.Int("num-workers", runtime.NumCPU(), "Number of .NET decompiler instances to run concurrently")
 	allowDupelicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
+	ilspycmdPath := flag.String("ilspy", "ilspycmd", "The 'ilspycmd' binary to use")
 
 	flag.Parse()
+
+	_, err := exec.LookPath(*ilspycmdPath)
+	if err != nil {
+		log.Fatalf("failed to find the specified 'ilspycmd' binary ('%s') - %s",
+			*ilspycmdPath, err.Error())
+	}
 
 	if len(*targetDirPath) == 0 {
 		log.Fatal("please specify a target directory path")
@@ -101,11 +108,11 @@ func main() {
 				return fmt.Errorf("failed to hash file '%s' - %s", filePath, err.Error())
 			}
 
-			finalOutputDirPath := extractInfo{
+			finalOutputDirPath := finalOutputDirCalc{
 				searchAbsPath:     absTargetDirPath,
 				targetFileAbsPath: filePath,
 				outputDirPath:     *outputDirPath,
-			}.finalOutputDirPath()
+			}.get()
 
 			if !*allowDupelicateFiles {
 				if existingPath, containsFileHash := fileHashesToDecompiledPaths[fileSha256str]; containsFileHash {
@@ -129,7 +136,11 @@ func main() {
 			}
 
 			d.queue(func() error {
-				err := extractNETFile(filePath, finalOutputDirPath)
+				err := decompileNETFile(decompileNETInfo{
+					ilspycmdPath:       *ilspycmdPath,
+					filePath:           filePath,
+					finalOutputDirPath: finalOutputDirPath,
+				})
 				if err != nil {
 					if _, ok := err.(*ilspyError); ok {
 						if *noIlspyErrors {
@@ -171,27 +182,33 @@ func main() {
 	log.Printf("finished after %s", time.Since(start).String())
 }
 
-type extractInfo struct {
+type finalOutputDirCalc struct {
 	searchAbsPath     string
 	targetFileAbsPath string
 	outputDirPath     string
 }
 
-func (o extractInfo) finalOutputDirPath() string {
+func (o finalOutputDirCalc) get() string {
 	return filepath.Join(o.outputDirPath, strings.TrimPrefix(o.targetFileAbsPath, o.searchAbsPath))
 }
 
-func extractNETFile(dotNetFilePath string, finalOutputDirPath string) error {
-	err := os.MkdirAll(finalOutputDirPath, 0700)
+type decompileNETInfo struct {
+	ilspycmdPath       string
+	filePath           string
+	finalOutputDirPath string
+}
+
+func decompileNETFile(info decompileNETInfo) error {
+	err := os.MkdirAll(info.finalOutputDirPath, 0700)
 	if err != nil {
 		return fmt.Errorf("failed to create output subdirectory - %s", err)
 	}
 
-	raw, err := exec.Command("ilspycmd", dotNetFilePath, "-p", "-o", finalOutputDirPath).CombinedOutput()
+	raw, err := exec.Command("ilspycmd", info.filePath, "-p", "-o", info.finalOutputDirPath).CombinedOutput()
 	if err != nil {
 		return &ilspyError{
 			err: fmt.Sprintf("failed to decompile .NET file '%s' - %s - %s",
-				dotNetFilePath, err.Error(), raw),
+				info.filePath, err.Error(), raw),
 		}
 	}
 
