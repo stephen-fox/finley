@@ -23,7 +23,7 @@ var (
 )
 
 func main() {
-	targetDirPath := flag.String("d", "", "The directory to search for DLLs")
+	targetDirPath := flag.String("d", "", "The directory to search for .NET files")
 	fileExtsCsv := flag.String("e", ".dll", "Comma separated list of file extensions to search for")
 	outputDirPath := flag.String("o", "", "The output directory. Creates a new directory if not specified")
 	respectFileCase := flag.Bool("respect-file-case", false, "Respect filenames' case when matching their extensions")
@@ -118,7 +118,7 @@ func main() {
 				if existingPath, containsFileHash := fileHashesToDecompiledPaths[fileSha256str]; containsFileHash {
 					err = os.MkdirAll(finalOutputDirPath, 0700)
 					if err != nil {
-						return fmt.Errorf("failed to create directory for ignored dll '%s' - %s",
+						return fmt.Errorf("failed to create directory for ignored .NET file '%s' - %s",
 							filePath, err.Error())
 					}
 					err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "ignored.log"),
@@ -126,7 +126,7 @@ func main() {
 							existingPath, fileSha256str)),
 						0600)
 					if err != nil {
-						return fmt.Errorf("failed to create ignored log for ignored dll '%s' - %s",
+						return fmt.Errorf("failed to create ignored log for ignored .NET file '%s' - %s",
 							filePath, err.Error())
 					}
 					return nil
