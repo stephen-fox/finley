@@ -49,7 +49,7 @@ arguments and an explanation of their effects:
   -no-ilspy-errors
     	Exit if ILSpy fails to decompile a file
   -num-workers int
-    	Number of .NET decompiler instances to run concurrently (default 8)
+    	Number of .NET decompiler instances to run concurrently (default n)
   -o string
     	The output directory. Creates a new directory if not specified
   -r	Scan recursively
