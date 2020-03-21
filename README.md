@@ -56,3 +56,14 @@ arguments and an explanation of their effects:
   -respect-file-case
     	Respect filenames' case when matching their extensions
 ```
+
+## Building from source
+You can use any of the following methods to build the application:
+
+- `go build cmd/finley/main.go` - Build the application
+- `build.sh` - A simple wrapper around 'go build' that saves build artifacts
+to `build/` and sets a version number in the compiled binary. This script
+expects a version to be provided by setting an environment variable
+named `VERSION`
+- `buildwin.sh` - Build the application for Windows (since that seems like the
+most common OS this tool would be used on)

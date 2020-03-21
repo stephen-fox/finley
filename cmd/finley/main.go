@@ -18,6 +18,10 @@ import (
 	"time"
 )
 
+var (
+	version string
+)
+
 func main() {
 	targetDirPath := flag.String("d", "", "The directory to search for DLLs")
 	fileExtsCsv := flag.String("e", ".dll", "Comma separated list of file extensions to search for")
