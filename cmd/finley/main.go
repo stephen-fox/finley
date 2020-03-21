@@ -30,7 +30,7 @@ func main() {
 	noIlspyErrors := flag.Bool("no-ilspy-errors", false, "Exit if ILSpy fails to decompile a file")
 	scanRecursively := flag.Bool("r", false, "Scan recursively")
 	numDecompilers := flag.Int("num-workers", runtime.NumCPU(), "Number of .NET decompiler instances to run concurrently")
-	allowDupelicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
+	allowDuplicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
 	ilspycmdPath := flag.String("ilspy", "ilspycmd", "The 'ilspycmd' binary to use")
 
 	flag.Parse()
@@ -114,7 +114,7 @@ func main() {
 				outputDirPath:     *outputDirPath,
 			}.get()
 
-			if !*allowDupelicateFiles {
+			if !*allowDuplicateFiles {
 				if existingPath, containsFileHash := fileHashesToDecompiledPaths[fileSha256str]; containsFileHash {
 					err = os.MkdirAll(finalOutputDirPath, 0700)
 					if err != nil {
