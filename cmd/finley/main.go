@@ -204,7 +204,7 @@ func decompileNETFile(info decompileNETInfo) error {
 		return fmt.Errorf("failed to create output subdirectory - %s", err)
 	}
 
-	raw, err := exec.Command("ilspycmd", info.filePath, "-p", "-o", info.finalOutputDirPath).CombinedOutput()
+	raw, err := exec.Command(info.ilspycmdPath, info.filePath, "-p", "-o", info.finalOutputDirPath).CombinedOutput()
 	if err != nil {
 		return &ilspyError{
 			err: fmt.Sprintf("failed to decompile .NET file '%s' - %s - %s",
