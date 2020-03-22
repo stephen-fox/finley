@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/schollz/progressbar/v2"
 )
 
 var (
@@ -32,6 +34,7 @@ func main() {
 	numDecompilers := flag.Int("num-workers", runtime.NumCPU(), "Number of .NET decompiler instances to run concurrently")
 	allowDuplicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
 	ilspycmdPath := flag.String("ilspy", "ilspycmd", "The 'ilspycmd' binary to use")
+	verbose := flag.Bool("v", false, "Display log messages rather than a progress bar")
 
 	flag.Parse()
 
@@ -69,6 +72,8 @@ func main() {
 	d := newDoer(*numDecompilers)
 
 	fileHashesToDecompiledPaths := make(map[string]string)
+
+	onJobComplete := make(chan struct{})
 
 	err = filepath.Walk(*targetDirPath,
 		func(filePath string, info os.FileInfo, err error) error {
@@ -136,6 +141,10 @@ func main() {
 			}
 
 			d.queue(func() error {
+				defer func() {
+					onJobComplete <- struct{}{}
+				}()
+
 				err := decompileNETFile(decompileNETInfo{
 					ilspycmdPath:       *ilspycmdPath,
 					filePath:           filePath,
@@ -149,7 +158,9 @@ func main() {
 						ioutil.WriteFile(filepath.Join(finalOutputDirPath, "decompile-failure.log"),
 							[]byte(err.Error()),
 							0600)
-						log.Printf("[warn] %s", err.Error())
+						if *verbose {
+							log.Printf("[warn] %s", err.Error())
+						}
 						return nil
 					}
 					return fmt.Errorf("failed to decompile '%s' - %s", filePath, err.Error())
@@ -163,7 +174,9 @@ func main() {
 						filePath, fileSha256str)
 				}
 
-				log.Printf("decompiled '%s' to '%s'", filePath, finalOutputDirPath)
+				if *verbose {
+					log.Printf("decompiled '%s' to '%s'", filePath, finalOutputDirPath)
+				}
 
 				return nil
 			})
@@ -171,10 +184,24 @@ func main() {
 			return nil
 		})
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err.Error())
 	}
 
+	var bar *progressbar.ProgressBar
+	if !*verbose {
+		bar = progressbar.NewOptions(len(fileHashesToDecompiledPaths),
+			progressbar.OptionShowCount())
+	}
+	go func() {
+		for range onJobComplete {
+			if bar != nil {
+				bar.Add(1)
+			}
+		}
+	}()
+
 	err = d.wait()
+	close(onJobComplete)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}

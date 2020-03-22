@@ -43,7 +43,7 @@ arguments and an explanation of their effects:
   -allow-duplicates
     	Decompile file even if its hash has already been encountered
   -d string
-    	The directory to search for DLLs
+    	The directory to search for .NET files
   -e string
     	Comma separated list of file extensions to search for (default ".dll")
   -ilspy string
@@ -57,6 +57,7 @@ arguments and an explanation of their effects:
   -r	Scan recursively
   -respect-file-case
     	Respect filenames' case when matching their extensions
+  -v	Display log messages rather than a progress bar
 ```
 
 ## Building from source
