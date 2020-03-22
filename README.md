@@ -8,6 +8,20 @@ The primary features of finley include recursive decompilation of .NET
 binaries  in a given directory, duplicate .NET binary avoidance, and
 configurable concurrent decompilation of .NET binaries.
 
+## Use cases
+My primary use case for this application is to decompile all of the .NET files
+in a given directory into a new directory whose structure mimics that of the
+original directory.
+
+I would like this to happen as quickly as possible too. That means the
+application must support running multiple decompilers simultaneously. Lastly,
+I would like to avoid decompiling the same .NET files over and over. Some
+developers (who shall not be named) like to include the same .NET files
+multiple times in their work.
+
+All of these things are headaches that a simple script could never solve. That
+is why finley exists :)
+
 ## Requirements
 Before using finley, you must install `ilspycmd`. This requires the .NET Core
 SDK. If you are a chocolatey user, you can install this by running:
