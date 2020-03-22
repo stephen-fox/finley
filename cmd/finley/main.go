@@ -206,7 +206,9 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	log.Printf("finished after %s", time.Since(start).String())
+	if *verbose {
+		log.Printf("finished after %s", time.Since(start).String())
+	}
 }
 
 type finalOutputDirCalc struct {
