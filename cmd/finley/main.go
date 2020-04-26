@@ -26,7 +26,7 @@ var (
 
 func main() {
 	targetDirPath := flag.String("d", "", "The directory to search for .NET files")
-	fileExtsCsv := flag.String("e", ".dll", "Comma separated list of file extensions to search for")
+	fileExtsCsv := flag.String("e", ".dll,.exe", "Comma separated list of file extensions to search for")
 	outputDirPath := flag.String("o", "", "The output directory. Creates a new directory if not specified")
 	respectFileCase := flag.Bool("respect-file-case", false, "Respect filenames' case when matching their extensions")
 	noIlspyErrors := flag.Bool("no-ilspy-errors", false, "Exit if ILSpy fails to decompile a file")

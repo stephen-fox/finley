@@ -59,7 +59,7 @@ arguments and an explanation of their effects:
   -d string
     	The directory to search for .NET files
   -e string
-    	Comma separated list of file extensions to search for (default ".dll")
+    	Comma separated list of file extensions to search for (default ".dll,.exe")
   -ilspy string
     	The 'ilspycmd' binary to use (default "ilspycmd")
   -no-ilspy-errors
