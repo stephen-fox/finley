@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/schollz/progressbar/v2"
-	"github.com/stephen-fox/finley"
+	"github.com/stephen-fox/filesearch"
 )
 
 var (
@@ -62,7 +62,7 @@ func main() {
 	onJobComplete := make(chan struct{})
 	numFiles := 0
 
-	fileWalkerConfig := finley.FindUniqueFilesConfig{
+	fileWalkerConfig := filesearch.FindUniqueFilesConfig{
 		TargetDirPath: *targetDirPath,
 		Recursive:     *scanRecursively,
 		AllowDupes:    *allowDuplicateFiles,
@@ -77,7 +77,7 @@ func main() {
 			}
 			return false
 		},
-		FoundFileFn: func(info finley.StatefulFileInfo) error {
+		FoundFileFn: func(info filesearch.StatefulFileInfo) error {
 			finalOutputDirPath := finalOutputDirCalc{
 				searchAbsPath:     info.AbsSearchDirPath,
 				targetFileAbsPath: info.FilePath,
@@ -173,7 +173,7 @@ func main() {
 	}()
 
 	start := time.Now()
-	err = finley.FindUniqueFiles(fileWalkerConfig)
+	err = filesearch.FindUniqueFiles(fileWalkerConfig)
 	close(searchFinished)
 	if err != nil {
 		log.Fatal(err.Error())
