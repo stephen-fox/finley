@@ -22,7 +22,6 @@ var (
 )
 
 func main() {
-	targetDirPath := flag.String("d", "", "The directory to search for .NET files")
 	fileExtsCsv := flag.String("e", ".dll,.exe", "Comma separated list of file extensions to search for")
 	outputDirPath := flag.String("o", "", "The output directory. Creates a new directory if not specified")
 	respectFileCase := flag.Bool("respect-file-case", false, "Respect filenames' case when matching their extensions")
@@ -35,14 +34,16 @@ func main() {
 
 	flag.Parse()
 
+	if flag.NArg() != 1 {
+		log.Fatalf("please specify the directory to search as the final argument")
+	}
+
+	targetDirPath := flag.Arg(0)
+
 	_, err := exec.LookPath(*ilspycmdPath)
 	if err != nil {
 		log.Fatalf("failed to find the specified 'ilspycmd' binary ('%s') - %s",
 			*ilspycmdPath, err.Error())
-	}
-
-	if len(*targetDirPath) == 0 {
-		log.Fatal("please specify a target directory path")
 	}
 
 	if len(*fileExtsCsv) == 0 {
@@ -50,7 +51,7 @@ func main() {
 	}
 
 	if len(*outputDirPath) == 0 {
-		*outputDirPath = filepath.Base(*targetDirPath)
+		*outputDirPath = filepath.Base(targetDirPath)
 	}
 
 	if !*respectFileCase {
@@ -63,7 +64,7 @@ func main() {
 	numFiles := 0
 
 	fileWalkerConfig := filesearch.FindUniqueFilesConfig{
-		TargetDirPath: *targetDirPath,
+		TargetDirPath: targetDirPath,
 		Recursive:     *scanRecursively,
 		AllowDupes:    *allowDuplicateFiles,
 		IncludeFileFn: func(fullFilePath string) (shouldInclude bool) {
