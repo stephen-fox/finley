@@ -31,8 +31,14 @@ func main() {
 	allowDuplicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
 	ilspycmdPath := flag.String("ilspy", "ilspycmd", "The 'ilspycmd' binary to use")
 	verbose := flag.Bool("v", false, "Display log messages rather than a progress bar")
+	showVersion := flag.Bool("version", false, "Display the version number and exit")
 
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(1)
+	}
 
 	if flag.NArg() != 1 {
 		log.Fatalf("please specify the directory to search as the final argument")
