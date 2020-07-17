@@ -46,13 +46,13 @@ finley some-directory/
 ```
 
 If you would like to recursively decompile all of the binaries in a given
-directory (i.e., include sub-directories), you can add the `-r` argument:
+directory (i.e., include sub-directories), you can add the `-r` option:
 ```
 finley -r some-directory
 ```
 
-For additional arguments, run with the `-h` option. This will produce a list of
-arguments and an explanation of their effects:
+For additional options, run with the `-h` option. This will produce a list of
+options and an explanation of their effects:
 ```
   -allow-duplicates
     	Decompile file even if its hash has already been encountered
