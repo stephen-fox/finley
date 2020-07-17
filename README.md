@@ -58,6 +58,7 @@ arguments and an explanation of their effects:
     	Decompile file even if its hash has already been encountered
   -e string
     	Comma separated list of file extensions to search for (default ".dll,.exe")
+  -h	Display this help page
   -ilspy string
     	The 'ilspycmd' binary to use (default "ilspycmd")
   -no-ilspy-errors
@@ -70,6 +71,8 @@ arguments and an explanation of their effects:
   -respect-file-case
     	Respect filenames' case when matching their extensions
   -v	Display log messages rather than a progress bar
+  -version
+    	Display the version number and exit
 ```
 
 ## Building from source
