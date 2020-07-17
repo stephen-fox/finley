@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,15 @@ import (
 
 	"github.com/schollz/progressbar/v2"
 	"github.com/stephen-fox/filesearch"
+)
+
+const (
+	usageFormat = `finley - %s
+
+usage: finley [options] directory-path/
+
+[options]
+%s`
 )
 
 var (
@@ -32,11 +42,21 @@ func main() {
 	ilspycmdPath := flag.String("ilspy", "ilspycmd", "The 'ilspycmd' binary to use")
 	verbose := flag.Bool("v", false, "Display log messages rather than a progress bar")
 	showVersion := flag.Bool("version", false, "Display the version number and exit")
+	help := flag.Bool("h", false, "Display this help page")
 
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version)
+		os.Exit(1)
+	}
+
+	if *help {
+		buff := bytes.NewBuffer(nil)
+		flag.CommandLine.SetOutput(buff)
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, usageFormat,
+			version, buff.String())
 		os.Exit(1)
 	}
 
