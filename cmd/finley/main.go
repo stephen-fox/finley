@@ -1,12 +1,9 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"bytes"
 	"flag"
 	"fmt"
-	"hash"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -18,6 +15,16 @@ import (
 	"time"
 
 	"github.com/schollz/progressbar/v2"
+	"github.com/stephen-fox/filesearch"
+)
+
+const (
+	usageFormat = `finley - %s
+
+usage: finley [options] directory-path/
+
+[options]
+%s`
 )
 
 var (
@@ -25,7 +32,6 @@ var (
 )
 
 func main() {
-	targetDirPath := flag.String("d", "", "The directory to search for .NET files")
 	fileExtsCsv := flag.String("e", ".dll,.exe", "Comma separated list of file extensions to search for")
 	outputDirPath := flag.String("o", "", "The output directory. Creates a new directory if not specified")
 	respectFileCase := flag.Bool("respect-file-case", false, "Respect filenames' case when matching their extensions")
@@ -35,8 +41,30 @@ func main() {
 	allowDuplicateFiles := flag.Bool("allow-duplicates", false, "Decompile file even if its hash has already been encountered")
 	ilspycmdPath := flag.String("ilspy", "ilspycmd", "The 'ilspycmd' binary to use")
 	verbose := flag.Bool("v", false, "Display log messages rather than a progress bar")
+	showVersion := flag.Bool("version", false, "Display the version number and exit")
+	help := flag.Bool("h", false, "Display this help page")
 
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(1)
+	}
+
+	if *help {
+		buff := bytes.NewBuffer(nil)
+		flag.CommandLine.SetOutput(buff)
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, usageFormat,
+			version, buff.String())
+		os.Exit(1)
+	}
+
+	if flag.NArg() != 1 {
+		log.Fatalf("please specify the directory to search as the final argument")
+	}
+
+	targetDirPath := flag.Arg(0)
 
 	_, err := exec.LookPath(*ilspycmdPath)
 	if err != nil {
@@ -44,101 +72,63 @@ func main() {
 			*ilspycmdPath, err.Error())
 	}
 
-	if len(*targetDirPath) == 0 {
-		log.Fatal("please specify a target directory path")
-	}
-
 	if len(*fileExtsCsv) == 0 {
 		log.Fatal("please specify a comma separated list of file extensions")
 	}
 
 	if len(*outputDirPath) == 0 {
-		*outputDirPath = filepath.Base(*targetDirPath)
+		*outputDirPath = filepath.Base(targetDirPath)
 	}
 
 	if !*respectFileCase {
 		*fileExtsCsv = strings.ToLower(*fileExtsCsv)
 	}
-
 	fileExts := strings.Split(*fileExtsCsv, ",")
 
-	absTargetDirPath, err := filepath.Abs(*targetDirPath)
-	if err != nil {
-		log.Fatalf("failed to determine absolute path of target directory - %s", err.Error())
-	}
-
-	start := time.Now()
-
 	d := newDoer(*numDecompilers)
-
-	fileHashesToDecompiledPaths := make(map[string]string)
-
 	onJobComplete := make(chan struct{})
+	numFiles := 0
 
-	err = filepath.Walk(*targetDirPath,
-		func(filePath string, info os.FileInfo, err error) error {
-			// Gotta check the error provided by the last call.
-			if err != nil {
-				return err
-			}
-
-			if !*scanRecursively {
-				if filepath.Dir(filePath) != absTargetDirPath {
-					return filepath.SkipDir
-				}
-			}
-
-			if info.IsDir() {
-				return nil
-			}
-
-			filename := info.Name()
+	fileWalkerConfig := filesearch.FindUniqueFilesConfig{
+		TargetDirPath: targetDirPath,
+		Recursive:     *scanRecursively,
+		AllowDupes:    *allowDuplicateFiles,
+		IncludeFileFn: func(fullFilePath string) (shouldInclude bool) {
 			if !*respectFileCase {
-				filename = strings.ToLower(filename)
+				fullFilePath = strings.ToLower(fullFilePath)
 			}
-
-			matchedExtension := false
 			for i := range fileExts {
-				if strings.HasSuffix(filename, fileExts[i]) {
-					matchedExtension = true
-					break
+				if strings.HasSuffix(fullFilePath, fileExts[i]) {
+					return true
 				}
 			}
-			if !matchedExtension {
-				return nil
-			}
-
-			fileSha256str, err := hashFile(filePath, sha256.New())
-			if err != nil {
-				return fmt.Errorf("failed to hash file '%s' - %s", filePath, err.Error())
-			}
-
+			return false
+		},
+		FoundFileFn: func(info filesearch.StatefulFileInfo) error {
 			finalOutputDirPath := finalOutputDirCalc{
-				searchAbsPath:     absTargetDirPath,
-				targetFileAbsPath: filePath,
+				searchAbsPath:     info.AbsSearchDirPath,
+				targetFileAbsPath: info.FilePath,
 				outputDirPath:     *outputDirPath,
 			}.get()
 
-			if !*allowDuplicateFiles {
-				if existingPath, containsFileHash := fileHashesToDecompiledPaths[fileSha256str]; containsFileHash {
-					err = os.MkdirAll(finalOutputDirPath, 0700)
-					if err != nil {
-						return fmt.Errorf("failed to create directory for ignored .NET file '%s' - %s",
-							filePath, err.Error())
-					}
-					err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "ignored.log"),
-						[]byte(fmt.Sprintf("file has already been decomipled to '%s', hash of file is %s\n",
-							existingPath, fileSha256str)),
-						0600)
-					if err != nil {
-						return fmt.Errorf("failed to create ignored log for ignored .NET file '%s' - %s",
-							filePath, err.Error())
-					}
-					return nil
+			if info.AlreadySeen {
+				err = os.MkdirAll(finalOutputDirPath, 0700)
+				if err != nil {
+					return fmt.Errorf("failed to create directory for ignored .NET file '%s' - %s",
+						info.FilePath, err.Error())
 				}
-
-				fileHashesToDecompiledPaths[fileSha256str] = finalOutputDirPath
+				err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "ignored.log"),
+					[]byte(fmt.Sprintf("file has already been seen at '%s', hash of file is %s\n",
+						info.FilePath, info.Hash)),
+					0600)
+				if err != nil {
+					return fmt.Errorf("failed to create log for ignored .NET file '%s' - %s",
+						info.FilePath, err.Error())
+				}
+				return nil
 			}
+
+			numFiles++
 
 			d.queue(func() error {
 				defer func() {
@@ -147,7 +137,7 @@ func main() {
 
 				err := decompileNETFile(decompileNETInfo{
 					ilspycmdPath:       *ilspycmdPath,
-					filePath:           filePath,
+					filePath:           info.FilePath,
 					finalOutputDirPath: finalOutputDirPath,
 				})
 				if err != nil {
@@ -163,34 +153,62 @@ func main() {
 						}
 						return nil
 					}
-					return fmt.Errorf("failed to decompile '%s' - %s", filePath, err.Error())
+					return fmt.Errorf("failed to decompile '%s' - %s",
+						info.FilePath, err.Error())
 				}
 
 				err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "hash.txt"),
-					[]byte(fmt.Sprintf("%s\n", fileSha256str)),
+					[]byte(fmt.Sprintf("%s\n", info.Hash)),
 					0600)
 				if err != nil {
 					return fmt.Errorf("failed to write hash file for '%s' - %s",
-						filePath, fileSha256str)
+						info.FilePath, info.Hash)
 				}
 
 				if *verbose {
-					log.Printf("decompiled '%s' to '%s'", filePath, finalOutputDirPath)
+					log.Printf("decompiled '%s' to '%s'",
+						info.FilePath, finalOutputDirPath)
 				}
 
 				return nil
 			})
 
 			return nil
-		})
+		},
+	}
+
+	// Display some messages if it is taking a while.
+	searchFinished := make(chan struct{})
+	go func() {
+		timeout := 5*time.Second
+		timer := time.NewTimer(timeout)
+		for {
+			select {
+			case <-timer.C:
+				log.Println("still searching for files to decompile, sorry for the wait :(")
+				timeout = timeout * 3
+				timer.Reset(timeout)
+			case <-searchFinished:
+				timer.Stop()
+				select {
+				case <-timer.C:
+				default:
+				}
+				return
+			}
+		}
+	}()
+
+	start := time.Now()
+	err = filesearch.FindUniqueFiles(fileWalkerConfig)
+	close(searchFinished)
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	var bar *progressbar.ProgressBar
 	if !*verbose {
-		bar = progressbar.NewOptions(len(fileHashesToDecompiledPaths),
-			progressbar.OptionShowCount())
+		bar = progressbar.NewOptions(numFiles, progressbar.OptionShowCount())
 	}
 	go func() {
 		for range onJobComplete {
@@ -204,6 +222,10 @@ func main() {
 	close(onJobComplete)
 	if err != nil {
 		log.Fatalln(err.Error())
+	}
+
+	if bar != nil {
+		bar.Finish()
 	}
 
 	if *verbose {
@@ -303,19 +325,4 @@ func (o *doer) wait() error {
 	default:
 		return nil
 	}
-}
-
-func hashFile(filePath string, hasher hash.Hash) (string, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	_, err = io.Copy(hasher, f)
-	if err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(hasher.Sum(nil)), nil
 }

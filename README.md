@@ -42,13 +42,13 @@ does not support the shipping version of .NET Core.
 ## Usage
 Typically, finley is used to decompile a directory containing .NET binaries:
 ```
-finley -d some-directory
+finley some-directory/
 ```
 
 If you would like to recursively decompile all of the binaries in a given
 directory (i.e., include sub-directories), you can add the `-r` argument:
 ```
-finley -d some-directory -r
+finley -r some-directory
 ```
 
 For additional arguments, run with the `-h` option. This will produce a list of
@@ -56,10 +56,9 @@ arguments and an explanation of their effects:
 ```
   -allow-duplicates
     	Decompile file even if its hash has already been encountered
-  -d string
-    	The directory to search for .NET files
   -e string
     	Comma separated list of file extensions to search for (default ".dll,.exe")
+  -h	Display this help page
   -ilspy string
     	The 'ilspycmd' binary to use (default "ilspycmd")
   -no-ilspy-errors
@@ -72,6 +71,8 @@ arguments and an explanation of their effects:
   -respect-file-case
     	Respect filenames' case when matching their extensions
   -v	Display log messages rather than a progress bar
+  -version
+    	Display the version number and exit
 ```
 
 ## Building from source
