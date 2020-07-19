@@ -227,11 +227,12 @@ func main() {
 	}()
 
 	err = decompilerPool.Wait()
+	if err != nil {
+		fmt.Println()
+		log.Fatalln(err.Error())
+	}
 	if bar != nil {
 		bar.Finish()
-	}
-	if err != nil {
-		log.Fatalln(err.Error())
 	}
 	close(onJobComplete)
 
