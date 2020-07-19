@@ -79,6 +79,9 @@ func main() {
 	if len(*outputDirPath) == 0 {
 		*outputDirPath = filepath.Base(targetDirPath)
 	}
+	if info, readDirErr := ioutil.ReadDir(*outputDirPath); readDirErr == nil && len(info) > 0 {
+		log.Fatalf("the output directory ('%s') is not empty", *outputDirPath)
+	}
 
 	if !*respectFileCase {
 		*fileExtsCsv = strings.ToLower(*fileExtsCsv)
@@ -91,6 +94,8 @@ func main() {
 	}
 	onJobComplete := make(chan struct{})
 	numFiles := 0
+
+	log.Printf("saving decompiled files to '%s'...", *outputDirPath)
 
 	fileWalkerConfig := filesearch.FindUniqueFilesConfig{
 		TargetDirPath: targetDirPath,
