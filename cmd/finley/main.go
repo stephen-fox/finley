@@ -148,19 +148,21 @@ func main() {
 					filePath:           info.FilePath,
 					finalOutputDirPath: finalOutputDirPath,
 				})
-				if err != nil {
-					if _, ok := err.(*ilspyError); ok {
-						if *noIlspyErrors {
-							return err
-						}
-						ioutil.WriteFile(filepath.Join(finalOutputDirPath, "decompile-failure.log"),
-							[]byte(err.Error()),
-							0600)
-						if *verbose {
-							log.Printf("[warn] %s", err.Error())
-						}
-						return nil
+				switch err.(type) {
+				case nil:
+					// Keep going.
+				case *ilspyError:
+					if *noIlspyErrors {
+						return err
 					}
+					ioutil.WriteFile(filepath.Join(finalOutputDirPath, "decompile-failure.log"),
+						[]byte(err.Error()),
+						0600)
+					if *verbose {
+						log.Printf("[warn] %s", err.Error())
+					}
+					return nil
+				default:
 					return fmt.Errorf("failed to decompile '%s' - %s",
 						info.FilePath, err.Error())
 				}
@@ -266,7 +268,7 @@ func decompileNETFile(info decompileNETInfo) error {
 	raw, err := exec.Command(info.ilspycmdPath, info.filePath, "-p", "-o", info.finalOutputDirPath).CombinedOutput()
 	if err != nil {
 		return &ilspyError{
-			err: fmt.Sprintf("failed to decompile .NET file '%s' - %s - %s",
+			err: fmt.Sprintf("failed to decompile file '%s' - %s - %s",
 				info.filePath, err.Error(), raw),
 		}
 	}
