@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/schollz/progressbar/v2"
 	"github.com/stephen-fox/filesearch"
+	"github.com/stephen-fox/grp"
 )
 
 const (
@@ -85,7 +85,10 @@ func main() {
 	}
 	fileExts := strings.Split(*fileExtsCsv, ",")
 
-	d := newDoer(*numDecompilers)
+	decompilerPool, err := grp.NewParallelFuncPool(*numDecompilers)
+	if err != nil {
+		log.Fatalf("failed to create parallel function pool - %s", err.Error())
+	}
 	onJobComplete := make(chan struct{})
 	numFiles := 0
 
@@ -130,7 +133,7 @@ func main() {
 
 			numFiles++
 
-			d.queue(func() error {
+			decompilerPool.QueueFunction(func() error {
 				defer func() {
 					onJobComplete <- struct{}{}
 				}()
@@ -218,7 +221,7 @@ func main() {
 		}
 	}()
 
-	err = d.wait()
+	err = decompilerPool.Wait()
 	close(onJobComplete)
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -272,57 +275,4 @@ type ilspyError struct {
 
 func (o ilspyError) Error() string {
 	return o.err
-}
-
-func newDoer(numWorkers int) *doer {
-	pool := make(chan int, numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		pool <- i
-	}
-
-	return &doer{
-		pool:   pool,
-		failed: make(chan error, 1),
-		dead:   make(chan struct{}),
-		wg:     &sync.WaitGroup{},
-	}
-}
-
-type doer struct {
-	pool   chan int
-	failed chan error
-	dead   chan struct{}
-	wg     *sync.WaitGroup
-}
-
-func (o *doer) queue(fn func() error) {
-	o.wg.Add(1)
-	go func() {
-		defer o.wg.Done()
-		select {
-		case workerID := <-o.pool:
-			err := fn()
-			if err != nil {
-				select {
-				case o.failed <- err:
-				default:
-					close(o.dead)
-				}
-				return
-			}
-			o.pool <- workerID
-		case <-o.dead:
-			return
-		}
-	}()
-}
-
-func (o *doer) wait() error {
-	o.wg.Wait()
-	select {
-	case err := <-o.failed:
-		return err
-	default:
-		return nil
-	}
 }

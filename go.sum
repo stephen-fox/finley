@@ -11,6 +11,10 @@ github.com/stephen-fox/filesearch v0.0.1 h1:cOarNqLd/VbXdsURhrHLH0wreIvsfDBgCxNg
 github.com/stephen-fox/filesearch v0.0.1/go.mod h1:urSvtbMHFs4+qN82e0D1MiArxm4QHMD9EWEEO5XHm24=
 github.com/stephen-fox/filesearch v0.0.2 h1:b8pD5lfLuo08Pf80KscIF+NVy7/c08Moln+SS+RThzk=
 github.com/stephen-fox/filesearch v0.0.2/go.mod h1:urSvtbMHFs4+qN82e0D1MiArxm4QHMD9EWEEO5XHm24=
+github.com/stephen-fox/grp v0.0.0-20200719000303-06094b4b8ab2 h1:GQwhs4a1gLuFM3Mcqlm2EjhD2LfSTxKwC9Er5HpsagU=
+github.com/stephen-fox/grp v0.0.0-20200719000303-06094b4b8ab2/go.mod h1:Y6l1avUHFSqhwn2/n+88OE1ltYGNU5sFc1ZH6nf6UeQ=
+github.com/stephen-fox/grp v0.0.1 h1:Wv7DYeM7fuBd843f0OoWmTofK2E1PgBQ+eINfBtZPJ0=
+github.com/stephen-fox/grp v0.0.1/go.mod h1:Y6l1avUHFSqhwn2/n+88OE1ltYGNU5sFc1ZH6nf6UeQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
