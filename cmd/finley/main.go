@@ -227,14 +227,13 @@ func main() {
 	}()
 
 	err = decompilerPool.Wait()
-	close(onJobComplete)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-
 	if bar != nil {
 		bar.Finish()
 	}
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	close(onJobComplete)
 
 	if *verbose {
 		log.Printf("finished after %s", time.Since(start).String())
