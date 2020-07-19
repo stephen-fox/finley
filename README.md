@@ -42,7 +42,7 @@ does not support the shipping version of .NET Core.
 ## Usage
 Typically, finley is used to decompile a directory containing .NET binaries:
 ```
-finley some-directory/
+finley some-directory
 ```
 
 If you would like to recursively decompile all of the binaries in a given
