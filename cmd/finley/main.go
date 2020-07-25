@@ -127,7 +127,7 @@ func main() {
 				}
 				err = ioutil.WriteFile(filepath.Join(finalOutputDirPath, "ignored.log"),
 					[]byte(fmt.Sprintf("file has already been seen at '%s', hash of file is %s\n",
-						info.FilePath, info.Hash)),
+						info.PreviousFilePath, info.Hash)),
 					0600)
 				if err != nil {
 					return fmt.Errorf("failed to create log for ignored .NET file '%s' - %s",
