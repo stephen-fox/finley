@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	usageFormat = `finley - %s
+	appName     = "finley"
+	usageFormat = appName + ` - %s
 
 usage: finley [options] directory-path/
 
@@ -77,7 +78,7 @@ func main() {
 	}
 
 	if len(*outputDirPath) == 0 {
-		*outputDirPath = filepath.Base(targetDirPath)
+		*outputDirPath = filepath.Base(targetDirPath) + "-" + appName
 	}
 	if info, readDirErr := ioutil.ReadDir(*outputDirPath); readDirErr == nil && len(info) > 0 {
 		log.Fatalf("the output directory ('%s') is not empty", *outputDirPath)
