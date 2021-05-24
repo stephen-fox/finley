@@ -1,5 +1,5 @@
 // Package finley makes it easy to quickly decompile several .NET binaries
-// without involving a GUI.
+// concurrently without involving a GUI.
 //
 // It does this by extending the CLI implementation of ILSpy
 // (https://github.com/icsharpcode/ILSpy). ILSply is an open source .NET
