@@ -7,9 +7,11 @@ It does this by extending the CLI implementation of ILSpy
 decompiler. It is normally invoked as a GUI application. However, its CLI
 implementation ('ilspycmd') provides a better platform for automation.
 
-The primary features of finley include recursive decompilation of .NET
-binaries in a given directory, duplicate .NET binary avoidance, and
-configurable concurrent decompilation of .NET binaries.
+## Features
+
+- Recursive decompilation of .NET binaries in a given directory
+- Duplicate .NET binary avoidance
+- Configurable concurrent decompilation of .NET binaries
 
 ## Use cases
 My primary use case for this application is to decompile all of the .NET files
